@@ -1,23 +1,62 @@
-# Azure Virtual Desktop Full-Stack Deployment
+# Terraform Azure Virtual Desktop Deployment 🚀🖥️
 
-**This Terraform repo deploys a complete, best-practice AVD environment:**
 
-- **Networking:** VNet with management & session-host subnets
-- **Monitoring:** Log Analytics workspace
-- **Storage:** Azure Files share for FSLogix profiles
-- **Control Plane:** Host Pool, App Group, Workspace, Scaling Plan
-- **Compute:** AAD‑joined Windows 11 session hosts with DSC
+> **Deploy a complete Azure Virtual Desktop (AVD) environment in minutes—fully automated with Terraform.**
 
-## Files
-- `main.tf`             Core resource definitions
-- `variables.tf`        Input variables & defaults
-- `terraform.tfvars.sample` Example configuration values
+---
 
-## Quick Start
+## 🗺️ What you get
+
+| Icon | Component                                                 |
+| ---- | --------------------------------------------------------- |
+| 🏢   | **Host Pool** (pooled or personal)                        |
+| 🖥️  | **Session Hosts** with custom image & sizing              |
+| 🛡️  | **Network + NSGs** ready for production                   |
+| 🔑   | **Key Vault** for secrets, joined to **AAD DS** or **AD** |
+| 📊   | **Monitoring** via Log Analytics & diagnostic settings    |
+| ⚙️   | **Scaling script** (optional) using Azure Automation      |
+
+## ⚡ Quick start
+
 ```bash
-# 1. Copy and edit vars
-cp terraform.tfvars.sample terraform.tfvars
-# 2. Deploy
-terraform init
-terraform plan
-terraform apply# terraform-avd-deployment
+az login
+az account set --subscription "<target-subscription>"
+
+# Clone
+ git clone https://github.com/travishankins/terraform-avd-deployment.git
+ cd terraform-avd-deployment
+
+# Init & deploy
+ terraform init
+ terraform apply -var-file="avd.tfvars"
+```
+
+> Customize `avd.tfvars` for host pool name, VM size, image, region, and AD join type.
+
+## 🌳 Repo layout
+
+```
+.
+├── main.tf            # Root composition
+├── variables.tf       # Inputs
+├── outputs.tf         # Exports
+└── modules/
+    ├── hostpool/
+    ├── sessionhosts/
+    ├── networking/
+    └── monitoring/
+```
+
+## 🔧 Common tweaks
+
+* **VM count / size** → `session_host_count`, `session_host_size`
+* **Domain join** → toggle `join_type` (AAD, AADDS, AD)
+* **Scaling** → enable `enable_autoscale` and adjust schedule in `modules/scaling`
+
+
+## 📚 Resources
+
+* [AVD docs](https://aka.ms/avd/docs)
+* [Terraform AVD module](https://registry.terraform.io/modules/Azure/avd/azurerm)
+
+
