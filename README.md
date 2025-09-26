@@ -136,7 +136,8 @@ graph TB
 - **🔧 Azure Image Builder Integration**: Automated custom image creation with Windows 11 + FSLogix
 - **🌐 Existing Network Support**: Works seamlessly with your hub-spoke architecture
 - **🔒 Security First**: Key Vault integration, RBAC, network restrictions, and managed identities
-- **📈 Auto Scaling**: Built-in scaling plans for intelligent cost optimization
+- **�️ Private Endpoints**: Optional private endpoint deployment for maximum security isolation
+- **�📈 Auto Scaling**: Built-in scaling plans for intelligent cost optimization
 - **🔍 Full Observability**: Log Analytics with comprehensive diagnostic settings
 - **⚡ Domain Flexibility**: Supports both Azure AD and Active Directory Domain Services
 - **📋 AVD Accelerator Aligned**: Follows Microsoft's recommended best practices
@@ -183,6 +184,7 @@ terraform apply -var-file="terraform.tfvars.local"
 | `location` | Azure region | `"East US"` |
 | `prefix` | Resource name prefix | `"avd"` |
 | `use_existing_network` | Use existing VNet | `true` |
+| `enable_private_endpoints` | Deploy services behind private endpoints | `false` |
 | `enable_image_builder` | Create AIB resources | `false` |
 | `session_host_count` | Number of session hosts | `2` |
 | `domain_join_type` | `"AzureAD"` or `"ActiveDirectory"` | `"AzureAD"` |
@@ -209,18 +211,57 @@ aib_vm_size         = "Standard_D2s_v3"
 use_custom_image = true
 ```
 
+### Private Endpoints (Enhanced Security)
+
+For maximum security, enable private endpoints to isolate all Azure services from public internet access:
+
+```hcl
+# Enable private endpoints for all supported services
+enable_private_endpoints     = true
+private_endpoint_subnet_name = "snet-private-endpoints"
+create_private_dns_zones     = true  # Automatically create private DNS zones
+
+# Services secured with private endpoints:
+# - Storage Account (Blob & File endpoints)  
+# - Key Vault
+# - Compute Gallery
+# - Log Analytics (future enhancement)
+```
+
+**Prerequisites for Private Endpoints:**
+- Dedicated subnet for private endpoints (`snet-private-endpoints`)
+- Network security group rules allowing private endpoint traffic
+- DNS resolution configured (automatically handled if `create_private_dns_zones = true`)
+
+**Example network setup:**
+```hcl
+# Your VNet should have these subnets:
+# - snet-avd-session-hosts     (for session host VMs)
+# - snet-private-endpoints     (for private endpoints)
+```
+
 ## 📁 File Structure
 
 ```
 .
-├── main.tf                    # Main infrastructure resources
-├── variables.tf               # Variable definitions
-├── outputs.tf                # Resource outputs
-├── versions.tf               # Provider version constraints
-├── terraform.tfvars          # Default variable values
-├── .gitignore                # Git ignore rules
-└── README.md                  # This file
+├── main.tf                           # Main infrastructure resources
+├── variables.tf                      # Variable definitions
+├── outputs.tf                        # Resource outputs
+├── versions.tf                       # Provider version constraints
+├── terraform.tfvars                  # Default variable values
+├── terraform.tfvars.private-endpoints # Example config with private endpoints
+├── .gitignore                        # Git ignore rules
+└── README.md                         # This file
 ```
+
+### 🔒 **Security Configurations**
+
+The repository includes example configurations for different security postures:
+
+- **`terraform.tfvars`**: Standard deployment with network restrictions
+- **`terraform.tfvars.private-endpoints`**: Enhanced security with private endpoints
+
+Use the private endpoints configuration for maximum security in production environments.
 
 ## 🔧 Advanced Configuration
 
@@ -283,6 +324,26 @@ terraform output -raw host_pool_registration_token
 - **Storage access** restricted via network rules and RBAC
 - **Image Builder** uses managed identity with least privilege
 - **Diagnostic logs** sent to Log Analytics for monitoring
+
+### 🛡️ **Private Endpoints Security Benefits**
+
+When `enable_private_endpoints = true`, the following security enhancements are applied:
+
+**Network Isolation:**
+- All Azure services are accessible only through private IP addresses
+- Public internet access is completely disabled for protected services
+- Traffic flows entirely within your virtual network
+
+**Services Protected:**
+- **Storage Account**: Both Blob and File endpoints secured
+- **Key Vault**: All secret access through private network only
+- **Compute Gallery**: Custom image access via private endpoints
+- **Private DNS**: Automatic DNS resolution for private endpoints
+
+**Zero Trust Architecture:**
+- No data leaves your virtual network perimeter
+- Eliminates attack surface from public internet
+- Compliance with strict security requirements (PCI DSS, HIPAA, etc.)
 
 ## 🧹 Cleanup
 

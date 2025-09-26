@@ -186,3 +186,41 @@ output "vm_admin_password" {
   value       = random_password.vm_admin.result
   sensitive   = true
 }
+
+############################################
+# Private Endpoint Outputs
+############################################
+output "private_endpoints_enabled" {
+  description = "Whether private endpoints are enabled"
+  value       = var.enable_private_endpoints
+}
+
+output "storage_blob_private_endpoint_id" {
+  description = "ID of the storage blob private endpoint"
+  value       = var.enable_private_endpoints ? azurerm_private_endpoint.storage_blob[0].id : null
+}
+
+output "storage_file_private_endpoint_id" {
+  description = "ID of the storage file private endpoint"
+  value       = var.enable_private_endpoints ? azurerm_private_endpoint.storage_file[0].id : null
+}
+
+output "key_vault_private_endpoint_id" {
+  description = "ID of the Key Vault private endpoint"
+  value       = var.enable_private_endpoints ? azurerm_private_endpoint.key_vault[0].id : null
+}
+
+output "compute_gallery_private_endpoint_id" {
+  description = "ID of the Compute Gallery private endpoint"
+  value       = var.enable_private_endpoints ? azurerm_private_endpoint.compute_gallery[0].id : null
+}
+
+output "private_dns_zones" {
+  description = "Private DNS zones created (if enabled)"
+  value = var.enable_private_endpoints && var.create_private_dns_zones ? {
+    storage_blob    = azurerm_private_dns_zone.storage_blob[0].name
+    storage_file    = azurerm_private_dns_zone.storage_file[0].name
+    key_vault       = azurerm_private_dns_zone.key_vault[0].name
+    compute_gallery = azurerm_private_dns_zone.compute_gallery[0].name
+  } : {}
+}

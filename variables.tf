@@ -74,6 +74,39 @@ variable "existing_subnet_name" {
 }
 
 ############################################
+# Private Endpoint Configuration
+############################################
+variable "enable_private_endpoints" {
+  type        = bool
+  description = "Whether to deploy services behind private endpoints for enhanced security"
+  default     = false
+}
+
+variable "private_endpoint_subnet_name" {
+  type        = string
+  description = "Name of the subnet for private endpoints (required if enable_private_endpoints is true)"
+  default     = ""
+}
+
+variable "private_dns_zones" {
+  type        = map(string)
+  description = "Map of private DNS zone names for private endpoints"
+  default = {
+    storage_blob    = "privatelink.blob.core.windows.net"
+    storage_file    = "privatelink.file.core.windows.net"
+    key_vault       = "privatelink.vaultcore.azure.net"
+    log_analytics   = "privatelink.ods.opinsights.azure.com"
+    compute_gallery = "privatelink.gallery.azure.com"
+  }
+}
+
+variable "create_private_dns_zones" {
+  type        = bool
+  description = "Whether to create private DNS zones (set to false if using existing DNS infrastructure)"
+  default     = true
+}
+
+############################################
 # Log Analytics Configuration
 ############################################
 variable "log_analytics_workspace_name" {

@@ -10,7 +10,36 @@ data "azurerm_resource_group" "shared_services" {
   name  = var.shared_services_rg_name
 }
 
-# Existing virtual network (assuming already exists)
+# Existing virtual network # Storage Account for FSLogix
+############################################
+resource "azurerm_storage_account" "fslogix" {
+  name                     = var.storage_account_name
+  resource_group_name      = local.shared_services_rg_name
+  location                 = var.location
+  account_tier             = "Standard"
+  account_replication_type = var.storage_account_replication_type
+  is_hns_enabled           = true
+
+  # Network rules for security
+  network_rules {
+    default_action             = var.enable_private_endpoints ? "Deny" : "Deny"
+    ip_rules                   = var.enable_private_endpoints ? [] : var.storage_allowed_ips
+    virtual_network_subnet_ids = var.enable_private_endpoints ? [] : (var.use_existing_network ? [local.subnet_id] : [])
+    bypass                     = ["AzureServices"]
+  }
+
+  # Disable public network access when using private endpoints
+  public_network_access_enabled = var.enable_private_endpoints ? false : true
+
+  tags = var.tags
+}
+
+resource "azurerm_storage_share" "fslogix_profiles" {
+  name                 = var.file_share_name
+  storage_account_name = azurerm_storage_account.fslogix.name
+  quota                = var.file_share_quota_gb
+}
+
 data "azurerm_virtual_network" "existing" {
   count               = var.use_existing_network ? 1 : 0
   name                = var.existing_vnet_name
@@ -22,6 +51,98 @@ data "azurerm_subnet" "existing_subnet" {
   name                 = var.existing_subnet_name
   virtual_network_name = var.existing_vnet_name
   resource_group_name  = var.existing_vnet_rg_name
+}
+
+# Private endpoint subnet (if using private endpoints)
+data "azurerm_subnet" "private_endpoint_subnet" {
+  count                = var.enable_private_endpoints ? 1 : 0
+  name                 = var.private_endpoint_subnet_name
+  virtual_network_name = var.existing_vnet_name
+  resource_group_name  = var.existing_vnet_rg_name
+}
+
+############################################
+# Private DNS Zones (if enabled)
+############################################
+resource "azurerm_private_dns_zone" "storage_blob" {
+  count               = var.enable_private_endpoints && var.create_private_dns_zones ? 1 : 0
+  name                = var.private_dns_zones.storage_blob
+  resource_group_name = local.shared_services_rg_name
+  tags                = var.tags
+}
+
+resource "azurerm_private_dns_zone" "storage_file" {
+  count               = var.enable_private_endpoints && var.create_private_dns_zones ? 1 : 0
+  name                = var.private_dns_zones.storage_file
+  resource_group_name = local.shared_services_rg_name
+  tags                = var.tags
+}
+
+resource "azurerm_private_dns_zone" "key_vault" {
+  count               = var.enable_private_endpoints && var.create_private_dns_zones ? 1 : 0
+  name                = var.private_dns_zones.key_vault
+  resource_group_name = local.shared_services_rg_name
+  tags                = var.tags
+}
+
+resource "azurerm_private_dns_zone" "log_analytics" {
+  count               = var.enable_private_endpoints && var.create_private_dns_zones ? 1 : 0
+  name                = var.private_dns_zones.log_analytics
+  resource_group_name = local.shared_services_rg_name
+  tags                = var.tags
+}
+
+resource "azurerm_private_dns_zone" "compute_gallery" {
+  count               = var.enable_private_endpoints && var.create_private_dns_zones ? 1 : 0
+  name                = var.private_dns_zones.compute_gallery
+  resource_group_name = local.shared_services_rg_name
+  tags                = var.tags
+}
+
+# Link private DNS zones to virtual network
+resource "azurerm_private_dns_zone_virtual_network_link" "storage_blob" {
+  count                 = var.enable_private_endpoints && var.create_private_dns_zones ? 1 : 0
+  name                  = "storage-blob-dns-link"
+  resource_group_name   = local.shared_services_rg_name
+  private_dns_zone_name = azurerm_private_dns_zone.storage_blob[0].name
+  virtual_network_id    = data.azurerm_virtual_network.existing[0].id
+  tags                  = var.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "storage_file" {
+  count                 = var.enable_private_endpoints && var.create_private_dns_zones ? 1 : 0
+  name                  = "storage-file-dns-link"
+  resource_group_name   = local.shared_services_rg_name
+  private_dns_zone_name = azurerm_private_dns_zone.storage_file[0].name
+  virtual_network_id    = data.azurerm_virtual_network.existing[0].id
+  tags                  = var.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "key_vault" {
+  count                 = var.enable_private_endpoints && var.create_private_dns_zones ? 1 : 0
+  name                  = "key-vault-dns-link"
+  resource_group_name   = local.shared_services_rg_name
+  private_dns_zone_name = azurerm_private_dns_zone.key_vault[0].name
+  virtual_network_id    = data.azurerm_virtual_network.existing[0].id
+  tags                  = var.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "log_analytics" {
+  count                 = var.enable_private_endpoints && var.create_private_dns_zones ? 1 : 0
+  name                  = "log-analytics-dns-link"
+  resource_group_name   = local.shared_services_rg_name
+  private_dns_zone_name = azurerm_private_dns_zone.log_analytics[0].name
+  virtual_network_id    = data.azurerm_virtual_network.existing[0].id
+  tags                  = var.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "compute_gallery" {
+  count                 = var.enable_private_endpoints && var.create_private_dns_zones ? 1 : 0
+  name                  = "compute-gallery-dns-link"
+  resource_group_name   = local.shared_services_rg_name
+  private_dns_zone_name = azurerm_private_dns_zone.compute_gallery[0].name
+  virtual_network_id    = data.azurerm_virtual_network.existing[0].id
+  tags                  = var.tags
 }
 
 ############################################
@@ -49,10 +170,11 @@ resource "azurerm_resource_group" "session_hosts" {
 }
 
 locals {
-  shared_services_rg_name = var.create_resource_groups ? azurerm_resource_group.shared_services[0].name : data.azurerm_resource_group.shared_services[0].name
-  avd_services_rg_name    = var.create_resource_groups ? azurerm_resource_group.avd_services[0].name : var.avd_services_rg_name
-  session_hosts_rg_name   = var.create_resource_groups ? azurerm_resource_group.session_hosts[0].name : var.session_hosts_rg_name
-  subnet_id               = var.use_existing_network ? data.azurerm_subnet.existing_subnet[0].id : null
+  shared_services_rg_name    = var.create_resource_groups ? azurerm_resource_group.shared_services[0].name : data.azurerm_resource_group.shared_services[0].name
+  avd_services_rg_name       = var.create_resource_groups ? azurerm_resource_group.avd_services[0].name : var.avd_services_rg_name
+  session_hosts_rg_name      = var.create_resource_groups ? azurerm_resource_group.session_hosts[0].name : var.session_hosts_rg_name
+  subnet_id                  = var.use_existing_network ? data.azurerm_subnet.existing_subnet[0].id : null
+  private_endpoint_subnet_id = var.enable_private_endpoints ? data.azurerm_subnet.private_endpoint_subnet[0].id : null
 }
 
 ############################################
@@ -87,6 +209,17 @@ resource "azurerm_key_vault" "avd" {
 
   purge_protection_enabled   = true
   soft_delete_retention_days = 7
+
+  # Disable public access when using private endpoints
+  public_network_access_enabled = var.enable_private_endpoints ? false : true
+
+  # Network ACLs
+  network_acls {
+    bypass                     = "AzureServices"
+    default_action             = var.enable_private_endpoints ? "Deny" : "Allow"
+    ip_rules                   = var.enable_private_endpoints ? [] : []
+    virtual_network_subnet_ids = var.enable_private_endpoints ? [] : (var.use_existing_network ? [local.subnet_id] : [])
+  }
 
   access_policy {
     tenant_id = data.azurerm_client_config.current.tenant_id
@@ -330,30 +463,110 @@ resource "azurerm_resource_group_template_deployment" "aib" {
 }
 
 ############################################
-# Storage Account for FSLogix
+# Private Endpoints (if enabled)
 ############################################
-resource "azurerm_storage_account" "fslogix" {
-  name                     = var.storage_account_name
-  resource_group_name      = local.shared_services_rg_name
-  location                 = var.location
-  account_tier             = "Standard"
-  account_replication_type = var.storage_account_replication_type
-  is_hns_enabled           = true
 
-  # Network rules for security
-  network_rules {
-    default_action             = "Deny"
-    ip_rules                   = var.storage_allowed_ips
-    virtual_network_subnet_ids = var.use_existing_network ? [local.subnet_id] : []
+# Storage Account Private Endpoints
+resource "azurerm_private_endpoint" "storage_blob" {
+  count               = var.enable_private_endpoints ? 1 : 0
+  name                = "${var.storage_account_name}-blob-pe"
+  location            = var.location
+  resource_group_name = local.shared_services_rg_name
+  subnet_id           = local.private_endpoint_subnet_id
+
+  private_service_connection {
+    name                           = "${var.storage_account_name}-blob-psc"
+    private_connection_resource_id = azurerm_storage_account.fslogix.id
+    subresource_names              = ["blob"]
+    is_manual_connection           = false
+  }
+
+  dynamic "private_dns_zone_group" {
+    for_each = var.create_private_dns_zones ? [1] : []
+    content {
+      name                 = "storage-blob-dns-zone-group"
+      private_dns_zone_ids = [azurerm_private_dns_zone.storage_blob[0].id]
+    }
   }
 
   tags = var.tags
 }
 
-resource "azurerm_storage_share" "fslogix_profiles" {
-  name                 = var.file_share_name
-  storage_account_name = azurerm_storage_account.fslogix.name
-  quota                = var.file_share_quota_gb
+resource "azurerm_private_endpoint" "storage_file" {
+  count               = var.enable_private_endpoints ? 1 : 0
+  name                = "${var.storage_account_name}-file-pe"
+  location            = var.location
+  resource_group_name = local.shared_services_rg_name
+  subnet_id           = local.private_endpoint_subnet_id
+
+  private_service_connection {
+    name                           = "${var.storage_account_name}-file-psc"
+    private_connection_resource_id = azurerm_storage_account.fslogix.id
+    subresource_names              = ["file"]
+    is_manual_connection           = false
+  }
+
+  dynamic "private_dns_zone_group" {
+    for_each = var.create_private_dns_zones ? [1] : []
+    content {
+      name                 = "storage-file-dns-zone-group"
+      private_dns_zone_ids = [azurerm_private_dns_zone.storage_file[0].id]
+    }
+  }
+
+  tags = var.tags
+}
+
+# Key Vault Private Endpoint
+resource "azurerm_private_endpoint" "key_vault" {
+  count               = var.enable_private_endpoints ? 1 : 0
+  name                = "${var.key_vault_name}-pe"
+  location            = var.location
+  resource_group_name = local.shared_services_rg_name
+  subnet_id           = local.private_endpoint_subnet_id
+
+  private_service_connection {
+    name                           = "${var.key_vault_name}-psc"
+    private_connection_resource_id = azurerm_key_vault.avd.id
+    subresource_names              = ["vault"]
+    is_manual_connection           = false
+  }
+
+  dynamic "private_dns_zone_group" {
+    for_each = var.create_private_dns_zones ? [1] : []
+    content {
+      name                 = "key-vault-dns-zone-group"
+      private_dns_zone_ids = [azurerm_private_dns_zone.key_vault[0].id]
+    }
+  }
+
+  tags = var.tags
+}
+
+# Compute Gallery Private Endpoint
+resource "azurerm_private_endpoint" "compute_gallery" {
+  count               = var.enable_private_endpoints ? 1 : 0
+  name                = "${var.compute_gallery_name}-pe"
+  location            = var.location
+  resource_group_name = local.shared_services_rg_name
+  subnet_id           = local.private_endpoint_subnet_id
+
+  private_service_connection {
+    name                           = "${var.compute_gallery_name}-psc"
+    private_connection_resource_id = azurerm_shared_image_gallery.avd.id
+    subresource_names              = ["gallery"]
+    is_manual_connection           = false
+  }
+
+  dynamic "private_dns_zone_group" {
+    for_each = var.create_private_dns_zones ? [1] : []
+    content {
+      name                 = "compute-gallery-dns-zone-group"
+      private_dns_zone_ids = [azurerm_private_dns_zone.compute_gallery[0].id]
+    }
+  }
+
+  tags = var.tags
 }
 
 ############################################
