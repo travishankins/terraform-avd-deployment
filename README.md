@@ -161,8 +161,14 @@ cd terraform-avd-deployment
 az login
 az account set --subscription "<your-subscription-id>"
 
-# 3. Customize configuration
+# 3. Customize configuration (choose one option):
+
+# Option A: Standard deployment with network restrictions
 cp terraform.tfvars terraform.tfvars.local
+# Edit terraform.tfvars.local with your specific values
+
+# Option B: High-security deployment with private endpoints
+cp terraform.tfvars.private-endpoints terraform.tfvars.local
 # Edit terraform.tfvars.local with your specific values
 
 # 4. Deploy infrastructure
@@ -261,7 +267,22 @@ The repository includes example configurations for different security postures:
 - **`terraform.tfvars`**: Standard deployment with network restrictions
 - **`terraform.tfvars.private-endpoints`**: Enhanced security with private endpoints
 
-Use the private endpoints configuration for maximum security in production environments.
+**Recommended approach:**
+1. Copy one of the example files to `terraform.tfvars.local`
+2. Customize `terraform.tfvars.local` with your specific values
+3. Use `terraform.tfvars.local` for deployment (this file is automatically ignored by git)
+
+**Quick deployment options:**
+```bash
+# Standard security deployment
+terraform apply -var-file="terraform.tfvars"
+
+# High-security deployment with private endpoints  
+terraform apply -var-file="terraform.tfvars.private-endpoints"
+
+# Custom deployment (after copying and editing)
+terraform apply -var-file="terraform.tfvars.local"
+```
 
 ## 🔧 Advanced Configuration
 
@@ -348,8 +369,12 @@ When `enable_private_endpoints = true`, the following security enhancements are 
 ## 🧹 Cleanup
 
 ```bash
-# Remove all resources
+# Remove all resources (using your customized configuration)
 terraform destroy -var-file="terraform.tfvars.local"
+
+# Alternative: Use specific configuration files directly
+# terraform destroy -var-file="terraform.tfvars"
+# terraform destroy -var-file="terraform.tfvars.private-endpoints"
 ```
 
 ## 🤝 Contributing
