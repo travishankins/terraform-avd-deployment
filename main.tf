@@ -36,7 +36,7 @@ resource "azurerm_storage_account" "fslogix" {
 
 resource "azurerm_storage_share" "fslogix_profiles" {
   name                 = var.file_share_name
-  storage_account_name = azurerm_storage_account.fslogix.name
+  storage_account_id   = azurerm_storage_account.fslogix.id
   quota                = var.file_share_quota_gb
 }
 
