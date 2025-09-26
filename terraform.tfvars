@@ -1,39 +1,105 @@
-subscription_id       = "00000000-0000-0000-0000-000000000000"
-resource_group_name   = "rg-avd-full"
-location              = "eastus"
+# Core Configuration
+location = "East US"
+prefix   = "avd"
 
-# Network
-vnet_name               = "avd-vnet"
-vnet_address_space      = ["10.0.0.0/16"]
-management_subnet_prefix = "10.0.0.0/24"
-session_subnet_prefix    = "10.0.1.0/24"
+tags = {
+  Environment = "Production"
+  Owner       = "IT Department"
+  Project     = "AVD Deployment"
+  CostCenter  = "IT-001"
+}
 
-# FSLogix
-storage_account_name  = "stfslogix001"
-storage_account_sku   = "Standard_LRS"
-file_share_name       = "fslogix"
+# Resource Group Configuration
+create_resource_groups  = true
+shared_services_rg_name = "rg-avd-shared-services"
+avd_services_rg_name    = "rg-avd-services"
+session_hosts_rg_name   = "rg-avd-session-hosts"
 
-# AVD
-host_pool_name         = "hp-full-avd"
-host_pool_friendly     = "Full AVD Pool"
-host_pool_type         = "Pooled"
-host_pool_lb_type      = "BreadthFirst"
-host_pool_max_sessions = 16
-app_group_name         = "ag-full-avd"
-app_group_type         = "Desktop"
-workspace_name         = "ws-full-avd"
-scaling_plan_name      = "sp-full-avd"
-scaling_plan_time_zone = "Pacific Standard Time"
-scaling_plan_days      = ["Monday","Tuesday","Wednesday","Thursday","Friday"]
+# Networking Configuration (assuming existing network)
+use_existing_network  = true
+existing_vnet_name    = "vnet-hub-prod"
+existing_vnet_rg_name = "rg-network-prod"
+existing_subnet_name  = "snet-avd-session-hosts"
 
-# Compute Gallery Image
-gallery_rg    = "rg-gallery"
-gallery_name  = "corp-images"
-image_name    = "win11-avd"
-image_version = "latest"
+# Log Analytics Configuration
+log_analytics_workspace_name    = "law-avd-prod"
+log_analytics_workspace_sku     = "PerGB2018"
+log_analytics_retention_in_days = 30
 
-# VM
-token_ttl      = "72h"
-vm_count       = 2
-vm_name_prefix = "avdsh"
-vm_size        = "Standard_D2s_v4"
+# Key Vault Configuration
+key_vault_name = "kv-avd-prod-001"
+key_vault_sku  = "standard"
+
+# Azure Image Builder Configuration
+enable_image_builder = true
+aib_api_version      = "2022-02-14"
+aib_build_timeout    = 120
+aib_vm_size          = "Standard_D2s_v3"
+
+# Compute Gallery Configuration
+compute_gallery_name      = "gal_avd_prod"
+image_definition_name     = "avd-win11-22h2"
+image_publisher           = "MicrosoftWindowsDesktop"
+image_offer               = "Windows-11"
+image_sku                 = "win11-22h2-avd"
+hyper_v_generation        = "V2"
+image_replication_regions = ["East US", "West US 2"]
+
+# Marketplace Image Configuration (source image for AIB)
+marketplace_image_publisher = "MicrosoftWindowsDesktop"
+marketplace_image_offer     = "Windows-11"
+marketplace_image_sku       = "win11-22h2-avd"
+marketplace_image_version   = "latest"
+
+# Storage Configuration
+storage_account_name             = "stfslogixavdprod001"
+storage_account_replication_type = "LRS"
+file_share_name                  = "fslogix-profiles"
+file_share_quota_gb              = 5120
+storage_allowed_ips              = [] # Add your IP addresses here
+
+# AVD Workspace Configuration
+workspace_name          = "ws-avd-prod"
+workspace_friendly_name = "AVD Production Workspace"
+workspace_description   = "Production Azure Virtual Desktop workspace"
+
+# AVD Host Pool Configuration
+host_pool_name                     = "hp-avd-prod"
+host_pool_friendly_name            = "AVD Production Host Pool"
+host_pool_description              = "Production Azure Virtual Desktop host pool"
+host_pool_type                     = "Pooled"
+host_pool_load_balancer_type       = "BreadthFirst"
+host_pool_maximum_sessions_allowed = 16
+host_pool_start_vm_on_connect      = true
+host_pool_custom_rdp_properties    = "drivestoredirect:s:*;audiomode:i:0;videoplaybackmode:i:1;redirectclipboard:i:1;redirectprinters:i:1;devicestoredirect:s:*;redirectcomports:i:1;redirectsmartcards:i:1;usbdevicestoredirect:s:*;enablecredsspsupport:i:1;use multimon:i:0"
+
+# Application Group Configuration
+desktop_application_group_name          = "dag-avd-prod"
+desktop_application_group_friendly_name = "AVD Production Desktop"
+desktop_application_group_description   = "Production desktop application group"
+
+# Scaling Plan Configuration
+enable_scaling_plan        = true
+scaling_plan_name          = "sp-avd-prod"
+scaling_plan_friendly_name = "AVD Production Scaling Plan"
+scaling_plan_description   = "Production scaling plan for AVD"
+scaling_plan_time_zone     = "Eastern Standard Time"
+
+# Session Host Configuration
+session_host_count        = 3
+session_host_name_prefix  = "avd-sh"
+session_host_vm_size      = "Standard_D4s_v3"
+session_host_disk_type    = "Premium_LRS"
+session_host_disk_size_gb = 128
+vm_admin_username         = "avdadmin"
+use_custom_image          = true
+
+# Domain Configuration (Azure AD Join)
+domain_join_type = "AzureAD"
+
+# If using Active Directory Domain Services, uncomment and configure:
+# domain_join_type     = "ActiveDirectory"
+# domain_name          = "contoso.com"
+# domain_ou_path       = "OU=AVD,DC=contoso,DC=com"
+# domain_join_username = "avdjoin"
+# domain_join_password = "YourSecurePassword123!"
